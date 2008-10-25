@@ -34,7 +34,7 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
 	/**
 	 * Amount of room to shift dragging images for finger height.
 	 */
-	private static final int FINGER_Y_OFFSET = -20;
+	private static final int FINGER_Y_OFFSET = -45;
 	
     private final Arwi arwi;
     private final DbHelper dbHelper;
@@ -82,22 +82,25 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
     {
     	boolean handled = false;
     	AlarmItem focusItem = getFocus();
-    	// Need to do actual drawable hit detection here, but hitTest doesn't
-    	// work as I'd expect, so do a distance test.
+    	// Test for radius dragging before alarm dragging.  Otherwise the user can
+    	// get stuck with a tiny circle.
     	if (focusItem != null
     		&& event.getAction() == MotionEvent.ACTION_DOWN
-			&& distance(mapView, event, focusItem) < 10)
-    	{
-  			this.dragDrawable = boundCenterBottom(this.arwi.getResources().getDrawable(R.drawable.pin_grey));
-    	}
-    	else if (focusItem != null
-    		&& event.getAction() == MotionEvent.ACTION_DOWN
-			&& distance(mapView, event, focusItem) < currCircleRadius + strokeWidth
-			&& distance(mapView, event, focusItem) > currCircleRadius - strokeWidth)
+			&& distance(mapView, event, focusItem) < currCircleRadius + strokeWidth * 2
+			&& distance(mapView, event, focusItem) > currCircleRadius - strokeWidth * 2)
     	{
     		currentlyDraggingCircle = true;
     		handled = true;
     	}
+    	// Need to do actual drawable hit detection here, but hitTest doesn't
+    	// work as I'd expect, so do a distance test.
+    	else if (focusItem != null
+    		&& event.getAction() == MotionEvent.ACTION_DOWN
+			&& distance(mapView, event, focusItem) < 20)
+    	{
+  			this.dragDrawable = boundCenterBottom(this.arwi.getResources().getDrawable(R.drawable.pin_grey));
+    	}
+    	
     	if (event.getAction() == MotionEvent.ACTION_MOVE && this.dragDrawable != null)
         {
     		Rect bounds = this.dragDrawable.copyBounds();
