@@ -3,7 +3,7 @@
  * 
  * See the LICENSE file for details.
  */
-package package com.googlecode.arwi;
+package com.googlecode.arwi;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -36,7 +36,7 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
 	 */
 	private static final int FINGER_Y_OFFSET = -20;
 	
-    private final Wakeum wakeum;
+    private final Arwi arwi;
     private final DbHelper dbHelper;
     private final Paint fillPaint;
     private final Paint strokePaint;
@@ -47,13 +47,13 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
     private float currCircleRadius = 50;
     private final int strokeWidth = 5;
 
-    public AlarmsOverlay(Wakeum wakeum)
+    public AlarmsOverlay(Arwi arwi)
     {
-        super(boundCenterBottom(wakeum.getResources().getDrawable(R.drawable.pin_red)));
+        super(boundCenterBottom(arwi.getResources().getDrawable(R.drawable.pin_red)));
         //super.setDrawFocusedItem(false);
         
-        this.wakeum = wakeum;
-        this.dbHelper = new DbHelper(wakeum);
+        this.arwi = arwi;
+        this.dbHelper = new DbHelper(arwi);
 
         this.fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         this.fillPaint.setARGB(64, 255, 119, 107);
@@ -88,7 +88,7 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
     		&& event.getAction() == MotionEvent.ACTION_DOWN
 			&& distance(mapView, event, focusItem) < 10)
     	{
-  			this.dragDrawable = boundCenterBottom(this.wakeum.getResources().getDrawable(R.drawable.pin_grey));
+  			this.dragDrawable = boundCenterBottom(this.arwi.getResources().getDrawable(R.drawable.pin_grey));
     	}
     	else if (focusItem != null
     		&& event.getAction() == MotionEvent.ACTION_DOWN
@@ -240,10 +240,10 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
     {
         AlarmItem item = getItem(i);
         setFocus(item);
-        MapView mapView = (MapView)this.wakeum.findViewById(R.id.mapview);
+        MapView mapView = (MapView)this.arwi.findViewById(R.id.mapview);
         mapView.getController().animateTo(item.getPoint());
         Toast.makeText(
-                        this.wakeum,
+                        this.arwi,
                         item.getSnippet(),
                         Toast.LENGTH_SHORT).show();
         return true;
@@ -264,7 +264,7 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
 
     public void create(GeoPoint mapCenter)
     {
-        Geocoder geocoder = new Geocoder(this.wakeum);
+        Geocoder geocoder = new Geocoder(this.arwi);
         List<Address> addresses;
         try
         {
@@ -272,13 +272,13 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
         }
         catch (IOException e)
         {
-            Log.e(Wakeum.TAG, e.toString());
+            Log.e(Arwi.TAG, e.toString());
             addresses = Collections.emptyList();
         }
         final String name;
         if (addresses.size() == 0)
         {
-            Log.e(Wakeum.TAG, "No address could be found.");
+            Log.e(Arwi.TAG, "No address could be found.");
             name = "Unknown location";
         }
         else
@@ -299,7 +299,7 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
         
         this.alarms = Alarm.create(this.dbHelper, name, mapCenter, Math.round(currCircleRadius));
         Toast.makeText(
-                        this.wakeum,
+                        this.arwi,
                         name,
                         Toast.LENGTH_SHORT).show();
         populate();

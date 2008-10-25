@@ -3,7 +3,7 @@
  * 
  * See the LICENSE file for details.
  */
-package package com.googlecode.arwi;
+package com.googlecode.arwi;
 
 import android.os.Bundle;
 import android.util.Log;
@@ -18,7 +18,7 @@ import com.google.android.maps.MapActivity;
 import com.google.android.maps.MapView;
 import com.google.android.maps.MyLocationOverlay;
 
-public class Wakeum extends MapActivity
+public class Arwi extends MapActivity
 {
     public static final String TAG = "Wakeum";
     
