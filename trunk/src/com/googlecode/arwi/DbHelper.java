@@ -29,7 +29,7 @@ class DbHelper extends SQLiteOpenHelper
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion)
     {
-        Log.w(Wakeum.TAG, "Upgrading database from version "
+        Log.w(Arwi.TAG, "Upgrading database from version "
                         + oldVersion
                         + " to "
                         + newVersion
