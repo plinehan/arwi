@@ -20,6 +20,7 @@ import android.graphics.Paint.Style;
 import android.graphics.drawable.Drawable;
 import android.location.Address;
 import android.location.Geocoder;
+import android.location.Location;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.widget.Toast;
@@ -118,9 +119,9 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
     	}
         if (event.getAction() == MotionEvent.ACTION_UP)
         {
+        	GeoPoint newGeoPoint = mapView.getProjection().fromPixels((int)event.getX(), (int)event.getY() + FINGER_Y_OFFSET);
             if (this.dragDrawable != null)
             {
-            	GeoPoint newGeoPoint = mapView.getProjection().fromPixels((int)event.getX(), (int)event.getY() + FINGER_Y_OFFSET);
             	moveItemTo(focusItem, newGeoPoint);
             	this.dragDrawable = null;
             	// Keep our item from losing focus.
@@ -128,8 +129,15 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
             }
             if (this.currentlyDraggingCircle)
             {
-    
-            	setItemRadius(focusItem, currCircleRadius);
+            	GeoPoint curCenter = focusItem.getPoint();
+            	//all the unused variables are just to inspect the results of various
+            	//distance calcuations.  
+            	float pixels = distance(mapView, event, focusItem);
+            	float meters = distanceFromPoints(curCenter, newGeoPoint);
+            	float meters2 = distanceFromPoints2(curCenter, newGeoPoint);
+            	float meters3 = distanceFromPoints3(curCenter, newGeoPoint);
+            	setItemRadius(focusItem, meters3);
+            	//setItemRadius(focusItem, currCircleRadius);
             	this.currentlyDraggingCircle = false;
             	handled = true;
             }
@@ -180,7 +188,7 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
     private void setItemRadius(AlarmItem item, float radius)
     {
     	Alarm alarm = Alarm.findAlarm(dbHelper, item.id);
-    	alarm.setRadius(dbHelper, Math.round(radius));
+    	alarm.setRadius(dbHelper, radius);
     	this.alarms = Alarm.getAll(dbHelper);
     	populate();
     	AlarmItem newItem = null;
@@ -213,14 +221,24 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
             Point point = projection.toPixels(geoPoint, null);
             if (!currentlyDraggingCircle)
             {
-            	//Uncommenting the following two lines and commenting the last will make it so 
-            	//the size of the circle stays fixed relative the earth when zooming in and out.
-            	//The only problem is that it gets recorded in screen pixels right now, so ends up as not
-            	//many meters.  Need to calculate how many meters a radius is in meters and store that, and
-            	//the projection classes offer no easy conversion back.
-            	//float pixels = projection.metersToEquatorPixels(item.radiusMeters);
-            	//currCircleRadius = pixels;
-            	currCircleRadius = item.radiusMeters;
+            	//We are now attempting to store the meters, but this conversion back
+            	//does not seem to work all that well.  Perhaps we're storing something weird
+            	//but the calculation of meters from pixels on the screen is now using Google's
+            	//own api to do the calculation.  But if you put in breakpoints and follow the
+            	//values it appears that the pixel distance goes in, but the pixels that come out
+            	//from this conversion are off.  The meters in and out are the same, so it's not
+            	//a problem writing to the db.  Best guess right now is that this meters to 
+            	//pixels function isn't all that great.  Need to poke at it more though.  Could
+            	//just be that projections suck and there's no good way to do this, at least
+            	//not just storing the radius.  We could consider storing the point of the radius
+            	//that the user draws, and then just draw the radius next time based on that.
+            	//Though I suppose we're still going to have to calculate the circle at some point.
+            	//But we could just use the Location.distanceBetween call to detect.
+            	float pixels = projection.metersToEquatorPixels(item.radiusMeters);
+            	currCircleRadius = pixels;
+            	
+            	//Old way we just stored the pixels, not the meters
+            	//currCircleRadius = item.radiusMeters;
             	drawCircle(canvas, this.fillPaint, point, currCircleRadius);
             	drawCircle(canvas, this.strokePaint, point, currCircleRadius);
             	drawCircle(canvas, this.strokePaint, point, miniCircleRadius);
@@ -317,5 +335,72 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
             name = string.toString();
         }
         return name;
+    }
+    
+    /**
+     * Calculates the distance in meters using the spherical law of cosines.  Port from
+     * javascript at http://www.movable-type.co.uk/scripts/latlong.html  It is supposed to 
+     * be approximate.  It appears to not work at all, must have translated something wrong
+     * @param p1 first point
+     * @param p2 second point
+     * @return approximation of distance in meters
+     */
+    public float distanceFromPoints(GeoPoint p1, GeoPoint p2)
+    {
+    	//I think I need to divide these by 1000000, shoudl check
+    	double lat1 = p1.getLatitudeE6() / 1000000.0;
+    	double lat2 = p2.getLatitudeE6() / 1000000.0;
+    	double lon1 = p1.getLongitudeE6() / 1000000.0;
+    	double lon2 = p2.getLongitudeE6() / 1000000.0;
+    	
+    	double R = 6371; // km
+    	double d = Math.acos(Math.sin(lat1)*Math.sin(lat2) + 
+    	                  Math.cos(lat1)*Math.cos(lat2) *
+    	                  Math.cos(lon2-lon1)) * R;
+    	return new Float(d);
+    }
+    
+    /**
+     * Calculates the distance in meters using the Android Location distance between static 
+     * static method.  
+     * @param p1 first point
+     * @param p2 second point
+     * @return approximation of distance in meters
+     */
+    public float distanceFromPoints3(GeoPoint p1, GeoPoint p2)
+    {
+    	double lat1 = p1.getLatitudeE6() / 1000000.0;
+    	double lat2 = p2.getLatitudeE6() / 1000000.0;
+    	double lon1 = p1.getLongitudeE6() / 1000000.0;
+    	double lon2 = p2.getLongitudeE6() / 1000000.0;
+    	float[] results = new float[1];
+    	Location.distanceBetween(lat1, lon1, lat2, lon2, results);
+    	return results[0];
+    }
+    
+    /**
+     * Calculates the distance in meters using the Haversine formula.  Port from
+     * javascript at http://www.movable-type.co.uk/scripts/latlong.html  It is supposed to 
+     * be approximate, assuming the earth is a sphere, but should calculate quickly.
+     * @param p1 first point
+     * @param p2 second point
+     * @return approximation of distance in meters
+     */
+    public float distanceFromPoints2(GeoPoint p1, GeoPoint p2)
+    {
+    	double lat1 = p1.getLatitudeE6() / 1000000.0;
+    	double lat2 = p2.getLatitudeE6() / 1000000.0;
+    	double lon1 = p1.getLongitudeE6() / 1000000.0;
+    	double lon2 = p2.getLongitudeE6() / 1000000.0;
+    	
+    	double R = 6371; // km
+    	double dLat = Math.toRadians((lat2 - lat1));
+    	double dLon = Math.toRadians((lon2 - lon1));
+    	double a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    	        Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) * 
+    	        Math.sin(dLon/2) * Math.sin(dLon/2); 
+    	double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    	double d = R * c;
+    	return new Float(d * 1000.0);
     }
 }
