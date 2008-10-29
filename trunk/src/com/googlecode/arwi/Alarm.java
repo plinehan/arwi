@@ -107,6 +107,18 @@ class Alarm
 		database.close();
     }
     
+    public void setName(DbHelper dbHelper, String name)
+    {
+		SQLiteDatabase database = dbHelper.getWritableDatabase();
+		database
+				.execSQL(
+						"UPDATE alarms SET name = ? where id = ?",
+						new Object[] {
+								name,
+								Long.valueOf(id)});
+		database.close();
+    }
+    
     public void setRadius(DbHelper dbHelper, float radius)
     {
 		SQLiteDatabase database = dbHelper.getWritableDatabase();

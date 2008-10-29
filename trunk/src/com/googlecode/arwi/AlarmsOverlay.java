@@ -154,8 +154,14 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
     
     private void moveItemTo(AlarmItem item, GeoPoint geoPoint)
     {
+    	  
     	Alarm alarm = Alarm.findAlarm(dbHelper, item.id);
     	alarm.moveTo(dbHelper, geoPoint);
+    	
+        //Would probably be more efficient to do the inserts of name and point in one call but
+    	//figured at some point we'd want to let people rename their alarms, so left them decoupled
+    	final String name = getFormattedGeoCode(geoPoint); 
+    	alarm.setName(dbHelper, name);
     	this.alarms = Alarm.getAll(dbHelper);
     	populate();
     	AlarmItem newItem = null;
@@ -267,11 +273,22 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
 
     public void create(GeoPoint mapCenter)
     {
+    	final String name = getFormattedGeoCode(mapCenter);        
+        this.alarms = Alarm.create(this.dbHelper, name, mapCenter, Math.round(currCircleRadius));
+        Toast.makeText(
+                        this.arwi,
+                        name,
+                        Toast.LENGTH_SHORT).show();
+        populate();
+    }
+    
+    private String getFormattedGeoCode(GeoPoint location) 
+    {
         Geocoder geocoder = new Geocoder(this.arwi);
         List<Address> addresses;
         try
         {
-            addresses = geocoder.getFromLocation(mapCenter.getLatitudeE6() / 1000000.0, mapCenter.getLongitudeE6() / 1000000.0, 1);
+            addresses = geocoder.getFromLocation(location.getLatitudeE6() / 1000000.0, location.getLongitudeE6() / 1000000.0, 1);
         }
         catch (IOException e)
         {
@@ -299,12 +316,6 @@ class AlarmsOverlay extends ItemizedOverlay<AlarmItem>
             }
             name = string.toString();
         }
-        
-        this.alarms = Alarm.create(this.dbHelper, name, mapCenter, Math.round(currCircleRadius));
-        Toast.makeText(
-                        this.arwi,
-                        name,
-                        Toast.LENGTH_SHORT).show();
-        populate();
+        return name;
     }
 }
